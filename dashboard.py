@@ -45,5 +45,3 @@ st.bar_chart(df.groupby("Tecnico")["Lucro"].sum())
 
 st.subheader("Pedidos do Mês")
 st.dataframe(df)
-
-
