@@ -6,9 +6,9 @@ st.title("📊 MENOTTECH | Dashboard Gerencial")
 
 # Ler planilha
 clientes = pd.read_excel("gestao_menottech.xlsx", sheet_name="Clientes")
-pedidos = pd.read_excel("gestao_menottech.xlsx", sheet_name="Pedidos")
-tecnicos = pd.read_excel("gestao_menottech.xlsx", sheet_name="Tecnicos")
-financeiro = pd.read_excel("gestao_menottech.xlsx", sheet_name="Financeiro")
+pedidos = pd.read_excel("gestao_menottech.xlsx", sheet_name="Pedido__Vendas")
+tecnicos = pd.read_excel("gestao_menottech.xlsx", sheet_name="Ténicos_Parceiros")
+financeiro = pd.read_excel("gestao_menottech.xlsx", sheet_name="Financeiro_Comercial")
 
 # Preparar dados
 pedidos["Data"] = pd.to_datetime(pedidos["Data"])
@@ -45,3 +45,4 @@ st.bar_chart(df.groupby("Tecnico")["Lucro"].sum())
 
 st.subheader("Pedidos do Mês")
 st.dataframe(df)
+
