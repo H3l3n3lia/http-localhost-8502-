@@ -30,7 +30,7 @@ def padronizar_colunas(df):
 try:
     clientes = pd.read_excel("gestao_menottech.xlsx", sheet_name="Clientes")
     pedidos = pd.read_excel("gestao_menottech.xlsx", sheet_name="Pedido_Vendas")
-    tecnicos = pd.read_excel("gestao_menottech.xlsx", sheet_name="Ténicos_Parceiros")
+    tecnicos = pd.read_excel("gestao_menottech.xlsx", sheet_name="Tecnicos_Parceiros")
     financeiro = pd.read_excel("gestao_menottech.xlsx", sheet_name="Financeiro_Comercial")
 except FileNotFoundError:
     st.error("⚠️ Arquivo 'gestao_menottech.xlsx' não encontrado. Verifique se ele está na mesma pasta do dashboard.")
