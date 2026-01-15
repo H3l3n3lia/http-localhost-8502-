@@ -24,111 +24,54 @@ def padronizar_colunas(df):
     )
     return df
 
+# =====================================
+# LEITURA DOS DADOS
+# =====================================
+try:
+    clientes = pd.read_excel("gestao_menottech.xlsx", sheet_name="Clientes")
+    pedidos = pd.read_excel("gestao_menottech.xlsx", sheet_name="Pedido_Vendas")
+    tecnicos = pd.read_excel("gestao_menottech.xlsx", sheet_name="Ténicos_Parceiros")
+    financeiro = pd.read_excel("gestao_menottech.xlsx", sheet_name="Financeiro_Comercial")
+except FileNotFoundError:
+    st.error("⚠️ Arquivo 'gestao_menottech.xlsx' não encontrado. Verifique se ele está na mesma pasta do dashboard.")
+    st.stop()
 
 # =====================================
-# ARQUIVO
+# PADRONIZAÇÃO DE COLUNAS
 # =====================================
-arquivo = "gestao_menottech.xlsx"
-
-# =====================================
-# LEITURA DAS ABAS
-# =====================================
-clientes = pd.read_excel(arquivo, sheet_name="Clientes")
-pedidos = pd.read_excel(arquivo, sheet_name="Pedido_Vendas")
-financeiro = pd.read_excel(arquivo, sheet_name="Financeiro_Comercial")
-
-# =====================================
-# PADRONIZAR COLUNAS
-# =====================================
+clientes = padronizar_colunas(clientes)
 pedidos = padronizar_colunas(pedidos)
+tecnicos = padronizar_colunas(tecnicos)
 financeiro = padronizar_colunas(financeiro)
 
 # =====================================
-# PREPARAÇÃO DOS DADOS (PEDIDOS)
+# TRATAMENTO DE PEDIDOS
 # =====================================
-pedidos["data"] = pd.to_datetime(pedidos["data"])
+pedidos["data"] = pd.to_datetime(pedidos["data"], errors="coerce")
+pedidos = pedidos.dropna(subset=["data"])  # remove linhas sem data
 pedidos["mes"] = pedidos["data"].dt.strftime("%m/%Y")
 
-# 👉 lucro calculado corretamente com base no seu Excel
-pedidos["lucro"] = (
-    pedidos["valor_de_venda"]
-    - pedidos["custo_do_produto"]
-    - pedidos["custo_instalacao"]
-)
+# Calcula lucro bruto se não existir
+if "lucro_bruto" not in pedidos.columns:
+    pedidos["lucro_bruto"] = pedidos["valor_de_venda"] - (pedidos.get("custo_do_produto", 0) + pedidos.get("custo_instalacao", 0))
 
 # =====================================
-# PARÂMETROS FINANCEIROS
+# FILTRO DE MÊS
 # =====================================
-# =====================================
-# PARÂMETROS FINANCEIROS (CORRETO)
-# =====================================
-# =====================================
-# FILTRO LATERAL (PRIMEIRO!)
-# =====================================
+meses_disponiveis = sorted(pedidos["mes"].unique())
+if not meses_disponiveis:
+    st.warning("⚠️ Não há dados de pedidos disponíveis.")
+    st.stop()
+
 mes_selecionado = st.sidebar.selectbox(
     "📅 Selecione o mês",
-    sorted(pedidos["mes"].unique())
+    meses_disponiveis
 )
 
-# padronizar coluna de mês no financeiro
+df = pedidos[pedidos["mes"] == mes_selecionado]
+
 # =====================================
 # PARÂMETROS FINANCEIROS
 # =====================================
 financeiro["mes"] = financeiro["mes_ano"].astype(str)
-
-meta_mes = financeiro.loc[
-    financeiro["mes"] == mes_selecionado,
-    "meta_do_mes"
-]
-
-if meta_mes.empty:
-    st.warning(f"⚠️ Não existe meta cadastrada para {mes_selecionado}")
-    meta = None
-else:
-    meta = meta_mes.iloc[0]
-
-
-# ticket médio calculado automaticamente
-ticket_medio = pedidos["valor_de_venda"].mean()
-
-# =====================================
-# MÉTRICAS
-# =====================================
-total_vendido = df["valor_de_venda"].sum()
-lucro_total = df["lucro"].sum()
-qtd_pedidos = len(df)
-
-if meta:
-    faltam = max(0, meta - total_vendido)
-else:
-    faltam = 0
-
-vendas_previstas = int((faltam / ticket_medio) + 0.99)
-
-c1, c2, c3, c4 = st.columns(4)
-
-c1.metric("💰 Total Vendido", f"R$ {total_vendido:,.2f}")
-c2.metric("📈 Lucro", f"R$ {lucro_total:,.2f}")
-c3.metric("🧾 Pedidos", qtd_pedidos)
-c4.metric("🎯 Meta Atingida", f"{(total_vendido / meta) * 100:.0f}%")
-
-if meta:
-    st.progress(min(total_vendido / meta, 1.0))
-    c4.metric("🎯 Meta Atingida", f"{(total_vendido / meta) * 100:.0f}%")
-else:
-    c4.metric("🎯 Meta", "Não cadastrada")
-
-
-st.info(
-    f"🔮 Faltam R$ {faltam:,.2f} para a meta "
-    f"(≈ {vendas_previstas} vendas no ticket médio)"
-)
-
-# =====================================
-# GRÁFICOS
-# =====================================
-st.subheader("📊 Lucro por Fornecedor")
-st.bar_chart(df.groupby("fornecedor")["lucro"].sum())
-
-st.subheader("📋 Pedidos do mês")
-st.dataframe(df)
+meta_mes = financeiro.loc[financeiro["mes"] == mes
