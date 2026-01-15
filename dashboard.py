@@ -57,20 +57,27 @@ pedidos["lucro"] = (
 # =====================================
 # PARÂMETROS FINANCEIROS
 # =====================================
-meta = financeiro["meta_do_mes"].iloc[0]
+# =====================================
+# PARÂMETROS FINANCEIROS (CORRETO)
+# =====================================
+
+# padronizar coluna de mês no financeiro
+financeiro["mes"] = financeiro["mes_ano"].astype(str)
+
+# buscar meta do mês selecionado
+meta_mes = financeiro.loc[
+    financeiro["mes"] == mes_selecionado,
+    "meta_do_mes"
+]
+
+if meta_mes.empty:
+    st.warning(f"⚠️ Não existe meta cadastrada para {mes_selecionado}")
+    meta = None
+else:
+    meta = meta_mes.iloc[0]
 
 # ticket médio calculado automaticamente
 ticket_medio = pedidos["valor_de_venda"].mean()
-
-# =====================================
-# FILTRO LATERAL
-# =====================================
-mes_selecionado = st.sidebar.selectbox(
-    "📅 Selecione o mês",
-    sorted(pedidos["mes"].unique())
-)
-
-df = pedidos[pedidos["mes"] == mes_selecionado]
 
 # =====================================
 # MÉTRICAS
@@ -79,7 +86,11 @@ total_vendido = df["valor_de_venda"].sum()
 lucro_total = df["lucro"].sum()
 qtd_pedidos = len(df)
 
-faltam = max(0, meta - total_vendido)
+if meta:
+    faltam = max(0, meta - total_vendido)
+else:
+    faltam = 0
+
 vendas_previstas = int((faltam / ticket_medio) + 0.99)
 
 c1, c2, c3, c4 = st.columns(4)
@@ -89,7 +100,12 @@ c2.metric("📈 Lucro", f"R$ {lucro_total:,.2f}")
 c3.metric("🧾 Pedidos", qtd_pedidos)
 c4.metric("🎯 Meta Atingida", f"{(total_vendido / meta) * 100:.0f}%")
 
-st.progress(min(total_vendido / meta, 1.0))
+if meta:
+    st.progress(min(total_vendido / meta, 1.0))
+    c4.metric("🎯 Meta Atingida", f"{(total_vendido / meta) * 100:.0f}%")
+else:
+    c4.metric("🎯 Meta", "Não cadastrada")
+
 
 st.info(
     f"🔮 Faltam R$ {faltam:,.2f} para a meta "
