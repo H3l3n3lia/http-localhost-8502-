@@ -62,11 +62,20 @@ pedidos["lucro"] = (
 # =====================================
 # PARÂMETROS FINANCEIROS (CORRETO)
 # =====================================
+# =====================================
+# FILTRO LATERAL (PRIMEIRO!)
+# =====================================
+mes_selecionado = st.sidebar.selectbox(
+    "📅 Selecione o mês",
+    sorted(pedidos["mes"].unique())
+)
 
 # padronizar coluna de mês no financeiro
+# =====================================
+# PARÂMETROS FINANCEIROS
+# =====================================
 financeiro["mes"] = financeiro["mes_ano"].astype(str)
 
-# buscar meta do mês selecionado
 meta_mes = financeiro.loc[
     financeiro["mes"] == mes_selecionado,
     "meta_do_mes"
@@ -77,6 +86,7 @@ if meta_mes.empty:
     meta = None
 else:
     meta = meta_mes.iloc[0]
+
 
 # ticket médio calculado automaticamente
 ticket_medio = pedidos["valor_de_venda"].mean()
