@@ -17,11 +17,13 @@ def padronizar_colunas(df):
         .str.strip()
         .str.lower()
         .str.replace(" ", "_")
+        .str.replace("/", "_")
         .str.normalize("NFKD")
         .str.encode("ascii", errors="ignore")
         .str.decode("utf-8")
     )
     return df
+
 
 # =====================================
 # ARQUIVO
