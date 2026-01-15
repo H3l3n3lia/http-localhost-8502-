@@ -1,124 +1,216 @@
-import pandas as pd
+# ============================================================
+# MENOTTECH | DASHBOARD ENTERPRISE
+# Preparado para: Cloud • VPS • SaaS • Mobile • Multiempresa
+# ============================================================
+
 import streamlit as st
+import pandas as pd
+import plotly.express as px
+import numpy as np
+from io import BytesIO
 
-# =====================================
-# CONFIGURAÇÃO DA PÁGINA
-# =====================================
-st.set_page_config(page_title="MENOTTECH", layout="wide")
-st.title("📊 MENOTTECH | Dashboard Gerencial")
+# ============================================================
+# CONFIGURAÇÃO GLOBAL
+# ============================================================
+st.set_page_config(
+    page_title="MENOTTECH",
+    layout="wide",
+    page_icon="logo_menottech.jpeg"
+)
 
-# =====================================
-# FUNÇÃO PARA PADRONIZAR COLUNAS
-# =====================================
+# ============================================================
+# ESTILO GLOBAL (Dark • Power BI / Tableau)
+# ============================================================
+st.markdown("""
+<style>
+.stApp { background:#0E1117; color:#FAFAFA; }
+section[data-testid="stSidebar"] { background:#020617; }
+
+.header {
+    display:flex; align-items:center; gap:15px;
+    border-bottom:1px solid #1f2937;
+    padding-bottom:18px; margin-bottom:20px;
+}
+.header h1 { color:#38BDF8; margin:0; }
+.header span { color:#9CA3AF; font-size:0.9rem; }
+
+.kpi {
+    background:#111827;
+    padding:18px;
+    border-radius:14px;
+    text-align:center;
+    box-shadow:0 0 0 1px #1f2937;
+}
+
+@media (max-width: 768px) {
+    .header { flex-direction:column; align-items:flex-start; }
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ============================================================
+# LOGIN (PRONTO PARA BANCO / JWT FUTURO)
+# ============================================================
+USERS = {
+    "admin": {"senha": "admin123", "perfil": "Admin", "empresa": "Menottech"},
+    "user": {"senha": "user123", "perfil": "Usuario", "empresa": "Menottech"}
+}
+
+if "auth" not in st.session_state:
+    st.session_state.auth = False
+
+if not st.session_state.auth:
+    st.title("🔐 Login MENOTTECH")
+    u = st.text_input("Usuário")
+    s = st.text_input("Senha", type="password")
+    if st.button("Entrar"):
+        if u in USERS and USERS[u]["senha"] == s:
+            st.session_state.auth = True
+            st.session_state.perfil = USERS[u]["perfil"]
+            st.session_state.empresa = USERS[u]["empresa"]
+            st.experimental_rerun()
+        else:
+            st.error("Usuário ou senha inválidos")
+    st.stop()
+
+# ============================================================
+# CABEÇALHO
+# ============================================================
+st.markdown("""
+<div class="header">
+    <img src="logo_menottech.png" width="70">
+    <div>
+        <h1>MENOTTECH</h1>
+        <span>Dashboard Executivo</span>
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+# ============================================================
+# FUNÇÕES AUXILIARES
+# ============================================================
 def padronizar_colunas(df):
     df = df.copy()
     df.columns = (
         df.columns.astype(str)
-        .str.strip()
-        .str.lower()
-        .str.replace(" ", "_")
-        .str.replace("/", "_")
+        .str.strip().str.lower()
+        .str.replace(" ", "_").str.replace("/", "_")
         .str.normalize("NFKD")
         .str.encode("ascii", errors="ignore")
         .str.decode("utf-8")
     )
     return df
 
-# =====================================
-# LEITURA DOS DADOS
-# =====================================
-try:
-    clientes = pd.read_excel("gestao_menottech.xlsx", sheet_name="Clientes")
-    pedidos = pd.read_excel("gestao_menottech.xlsx", sheet_name="Pedido_Vendas")
-    tecnicos = pd.read_excel("gestao_menottech.xlsx", sheet_name="Tecnicos_Parceiros")
-    financeiro = pd.read_excel("gestao_menottech.xlsx", sheet_name="Financeiro_Comercial")
-except FileNotFoundError:
-    st.error("⚠️ Arquivo 'gestao_menottech.xlsx' não encontrado. Verifique se ele está na mesma pasta do dashboard.")
-    st.stop()
+def export_excel(df):
+    buffer = BytesIO()
+    df.to_excel(buffer, index=False)
+    return buffer.getvalue()
 
-# =====================================
-# PADRONIZAÇÃO DE COLUNAS
-# =====================================
-clientes = padronizar_colunas(clientes)
-pedidos = padronizar_colunas(pedidos)
-tecnicos = padronizar_colunas(tecnicos)
-financeiro = padronizar_colunas(financeiro)
+# ============================================================
+# DADOS (Excel → fácil trocar por banco)
+# ============================================================
+clientes = padronizar_colunas(pd.read_excel("gestao_menottech.xlsx", "Clientes"))
+pedidos = padronizar_colunas(pd.read_excel("gestao_menottech.xlsx", "Pedido_Vendas"))
+financeiro = padronizar_colunas(pd.read_excel("gestao_menottech.xlsx", "Financeiro_Comercial"))
 
-# =====================================
-# TRATAMENTO DE PEDIDOS
-# =====================================
+# ============================================================
+# TRATAMENTO
+# ============================================================
 pedidos["data"] = pd.to_datetime(pedidos["data"], errors="coerce")
-pedidos = pedidos.dropna(subset=["data"])  # remove linhas sem data
+pedidos = pedidos.dropna(subset=["data"])
 pedidos["mes"] = pedidos["data"].dt.strftime("%m/%Y")
 
-# Calcula lucro bruto se não existir
 if "lucro_bruto" not in pedidos.columns:
-    pedidos["lucro_bruto"] = pedidos["valor_de_venda"] - (pedidos.get("custo_do_produto", 0) + pedidos.get("custo_instalacao", 0))
+    pedidos["lucro_bruto"] = pedidos["valor_de_venda"] - (
+        pedidos.get("custo_do_produto", 0) +
+        pedidos.get("custo_instalacao", 0)
+    )
 
-# =====================================
-# FILTRO DE MÊS
-# =====================================
-meses_disponiveis = sorted(pedidos["mes"].unique())
-if not meses_disponiveis:
-    st.warning("⚠️ Não há dados de pedidos disponíveis.")
-    st.stop()
+# ============================================================
+# SIDEBAR
+# ============================================================
+meses = sorted(pedidos["mes"].unique())
+mes = st.sidebar.selectbox("📅 Mês", meses)
 
-mes_selecionado = st.sidebar.selectbox(
-    "📅 Selecione o mês",
-    meses_disponiveis
-)
+df = pedidos[pedidos["mes"] == mes]
 
-df = pedidos[pedidos["mes"] == mes_selecionado]
-
-# =====================================
-# PARÂMETROS FINANCEIROS
-# =====================================
 financeiro["mes"] = financeiro["mes_ano"].astype(str)
-meta_mes = financeiro.loc[financeiro["mes"] == mes_selecionado, "meta_do_mes"]
+meta = financeiro.loc[financeiro["mes"] == mes, "meta_do_mes"]
+meta = meta.iloc[0] if not meta.empty else None
 
-if meta_mes.empty:
-    st.warning(f"⚠️ Não existe meta cadastrada para {mes_selecionado}")
-    meta = None
-else:
-    meta = meta_mes.iloc[0]
+# ============================================================
+# MÉTRICAS
+# ============================================================
+total = df["valor_de_venda"].sum()
+lucro = df["lucro_bruto"].sum()
+ticket = df["valor_de_venda"].mean()
 
-ticket_medio = pedidos["valor_de_venda"].mean()
+# ============================================================
+# ABAS
+# ============================================================
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
+    "📊 Geral", "📈 Comparativos", "🏆 Rankings", "🔮 Previsão", "📤 Exportar"
+])
 
-# =====================================
-# MÉTRICAS PRINCIPAIS
-# =====================================
-total_vendido = df["valor_de_venda"].sum()
-lucro_total = df["lucro_bruto"].sum()
-qtd_pedidos = len(df)
+# ============================================================
+# GERAL
+# ============================================================
+with tab1:
+    c1, c2, c3, c4 = st.columns(4)
+    c1.metric("💰 Faturamento", f"R$ {total:,.2f}")
+    c2.metric("📈 Lucro", f"R$ {lucro:,.2f}")
+    c3.metric("🎫 Ticket Médio", f"R$ {ticket:,.2f}")
+    if meta:
+        c4.metric("🎯 Meta", f"{(total/meta)*100:.0f}%")
+        st.progress(min(total/meta, 1.0))
 
-if meta:
-    faltam = max(0, meta - total_vendido)
-else:
-    faltam = 0
+# ============================================================
+# COMPARATIVOS
+# ============================================================
+with tab2:
+    mensal = pedidos.groupby("mes", as_index=False)["valor_de_venda"].sum()
+    fig = px.line(mensal, x="mes", y="valor_de_venda", markers=True)
+    fig.update_layout(
+        plot_bgcolor="#0E1117",
+        paper_bgcolor="#0E1117",
+        font_color="#FAFAFA"
+    )
+    st.plotly_chart(fig, use_container_width=True)
 
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("💰 Total Vendido", f"R$ {total_vendido:,.2f}")
-col2.metric("📈 Lucro", f"R$ {lucro_total:,.2f}")
-col3.metric("🧾 Pedidos", qtd_pedidos)
-if meta:
-    col4.metric("🎯 Meta Atingida", f"{(total_vendido/meta)*100:.0f}%")
-else:
-    col4.metric("🎯 Meta", "Não cadastrada")
+# ============================================================
+# RANKING
+# ============================================================
+with tab3:
+    if "tecnico" in df.columns:
+        ranking = (
+            df.groupby("tecnico", as_index=False)["lucro_bruto"]
+            .sum()
+            .sort_values("lucro_bruto", ascending=False)
+        )
+        st.dataframe(ranking, use_container_width=True)
 
-# Barra de progresso
-if meta:
-    st.progress(min(total_vendido/meta, 1.0))
+# ============================================================
+# PREVISÃO (Linear simples – segura)
+# ============================================================
+with tab4:
+    if len(mensal) > 2:
+        x = np.arange(len(mensal))
+        y = mensal["valor_de_venda"].values
+        coef = np.polyfit(x, y, 1)
+        previsao = coef[0] * (x[-1] + 1) + coef[1]
+        st.metric("🔮 Próximo Mês (estimado)", f"R$ {previsao:,.2f}")
 
-st.info(f"🔮 Faltam R$ {faltam:,.2f} | ≈ {int((faltam/ticket_medio)+0.99)} vendas para a meta")
+# ============================================================
+# EXPORTAÇÃO
+# ============================================================
+with tab5:
+    st.download_button(
+        "📥 Baixar pedidos do mês",
+        data=export_excel(df),
+        file_name=f"pedidos_{mes}.xlsx"
+    )
 
-# =====================================
-# GRÁFICOS
-# =====================================
-st.subheader("Lucro por Técnico")
-if "tecnico" in df.columns:
-    st.bar_chart(df.groupby("tecnico")["lucro_bruto"].sum())
-else:
-    st.info("⚠️ Coluna 'tecnico' não encontrada nos pedidos.")
-
-st.subheader("Pedidos do Mês")
-st.dataframe(df)
+# ============================================================
+# FOOTER
+# ============================================================
+st.caption("© Menottech • Dashboard Executivo • Pronto para SaaS")
