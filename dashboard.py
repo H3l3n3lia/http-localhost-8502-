@@ -1,47 +1,35 @@
 import pandas as pd
 import streamlit as st
 
+# ===============================
+# CONFIGURAÇÃO DA PÁGINA
+# ===============================
 st.set_page_config(page_title="MENOTTECH", layout="wide")
 st.title("📊 MENOTTECH | Dashboard Gerencial")
 
-# Ler planilha
-clientes = pd.read_excel("gestao_menottech.xlsx", sheet_name="Clientes")
-pedidos = pd.read_excel("gestao_menottech.xlsx", sheet_name="Pedido_Vendas")
-tecnicos = pd.read_excel("gestao_menottech.xlsx", sheet_name="Ténicos_Parceiros")
-financeiro = pd.read_excel("gestao_menottech.xlsx", sheet_name="Financeiro_Comercial")
+# ===============================
+# FUNÇÕES AUXILIARES
+# ===============================
+def padronizar_colunas(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Padroniza nomes de colunas:
+    - remove espaços extras
+    - minúsculas
+    - troca espaços por _
+    - remove acentos
+    """
+    df = df.copy()
+    df.columns = (
+        df.columns.astype(str)
+        .str.strip()
+        .str.lower()
+        .str.replace(" ", "_")
+        .str.normalize("NFKD")
+        .str.encode("ascii", errors="ignore")
+        .str.decode("utf-8")
+    )
+    return df
 
-# Preparar dados
-pedidos["Data"] = pd.to_datetime(pedidos["Data"])
-pedidos["Mes"] = pedidos["Data"].dt.strftime("%m/%Y")
-pedidos["Lucro"] = pedidos["Valor_Venda"] - pedidos["Custo_Tecnico"]
 
-# Parâmetros
-meta = financeiro["Meta"].iloc[0]
-ticket = financeiro["Ticket_Medio"].iloc[0]
-
-# Filtro
-mes = st.sidebar.selectbox("Mês", pedidos["Mes"].unique())
-df = pedidos[pedidos["Mes"] == mes]
-
-# Métricas principais
-total = df["Valor_Venda"].sum()
-lucro = df["Lucro"].sum()
-qtd = len(df)
-faltam = max(0, meta - total)
-vendas_previstas = int((faltam / ticket) + 0.99)
-
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("💰 Total Vendido", f"R$ {total:,.2f}")
-col2.metric("📈 Lucro", f"R$ {lucro:,.2f}")
-col3.metric("🧾 Pedidos", qtd)
-col4.metric("🎯 Meta", f"{(total/meta)*100:.0f}%")
-
-st.progress(min(total/meta, 1.0))
-st.info(f"🔮 Faltam R$ {faltam:,.2f} | ≈ {vendas_previstas} vendas para a meta")
-
-# Gráficos
-st.subheader("Lucro por Técnico")
-st.bar_chart(df.groupby("Tecnico")["Lucro"].sum())
-
-st.subheader("Pedidos do Mês")
-st.dataframe(df)
+def carregar_excel(nome_arquivo: str, aba: str) -> pd.DataFrame:
+    try
