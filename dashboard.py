@@ -11,9 +11,9 @@ st.title("📊 MENOTTECH | Dashboard Gerencial")
 # FUNÇÃO PARA PADRONIZAR COLUNAS
 # =====================================
 def padronizar_colunas(df):
+    df = df.copy()
     df.columns = (
-        df.columns
-        .astype(str)
+        df.columns.astype(str)
         .str.strip()
         .str.lower()
         .str.replace(" ", "_")
@@ -24,10 +24,13 @@ def padronizar_colunas(df):
     return df
 
 # =====================================
-# LEITURA DO EXCEL
+# ARQUIVO
 # =====================================
 arquivo = "gestao_menottech.xlsx"
 
+# =====================================
+# LEITURA DAS ABAS
+# =====================================
 clientes = pd.read_excel(arquivo, sheet_name="Clientes")
 pedidos = pd.read_excel(arquivo, sheet_name="Pedido_Vendas")
 tecnicos = pd.read_excel(arquivo, sheet_name="Tecnicos_Parceiros")
@@ -38,6 +41,13 @@ financeiro = pd.read_excel(arquivo, sheet_name="Financeiro_Comercial")
 # =====================================
 pedidos = padronizar_colunas(pedidos)
 financeiro = padronizar_colunas(financeiro)
+
+# =====================================
+# CONFERÊNCIA VISUAL (NUNCA TELA BRANCA)
+# =====================================
+st.subheader("🔍 Diagnóstico rápido")
+st.write("Colunas de PEDIDOS:", pedidos.columns.tolist())
+st.write("Colunas de FINANCEIRO:", financeiro.columns.tolist())
 
 # =====================================
 # PREPARAÇÃO DOS DADOS
@@ -63,21 +73,20 @@ mes_selecionado = st.sidebar.selectbox(
 df = pedidos[pedidos["mes"] == mes_selecionado]
 
 # =====================================
-# MÉTRICAS PRINCIPAIS
+# MÉTRICAS
 # =====================================
 total_vendido = df["valor_venda"].sum()
 lucro_total = df["lucro"].sum()
-quantidade_pedidos = len(df)
+qtd_pedidos = len(df)
 
 faltam = max(0, meta - total_vendido)
 vendas_previstas = int((faltam / ticket) + 0.99)
 
-col1, col2, col3, col4 = st.columns(4)
-
-col1.metric("💰 Total Vendido", f"R$ {total_vendido:,.2f}")
-col2.metric("📈 Lucro", f"R$ {lucro_total:,.2f}")
-col3.metric("🧾 Pedidos", quantidade_pedidos)
-col4.metric("🎯 Meta Atingida", f"{(total_vendido / meta) * 100:.0f}%")
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("💰 Total Vendido", f"R$ {total_vendido:,.2f}")
+c2.metric("📈 Lucro", f"R$ {lucro_total:,.2f}")
+c3.metric("🧾 Pedidos", qtd_pedidos)
+c4.metric("🎯 Meta Atingida", f"{(total_vendido / meta) * 100:.0f}%")
 
 st.progress(min(total_vendido / meta, 1.0))
 st.info(
@@ -88,4 +97,8 @@ st.info(
 # =====================================
 # GRÁFICOS
 # =====================================
-st.subheader("📊 Luc
+st.subheader("📊 Lucro por Técnico")
+st.bar_chart(df.groupby("tecnico")["lucro"].sum())
+
+st.subheader("📋 Pedidos do mês")
+st.dataframe(df)
